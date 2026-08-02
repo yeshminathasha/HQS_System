@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.aggregation.GroupOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
+import org.bson.Document;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,11 +58,11 @@ public class DoctorService {
                 Criteria.where("status").in(PatientStatus.WAITING, PatientStatus.IN_CONSULTATION)
                         .and("doctorName").exists(true).ne(null));
         GroupOperation group = Aggregation.group("doctorName").count().as("count");
-        AggregationResults<Map> results = mongoTemplate.aggregate(
-                Aggregation.newAggregation(match, group), "patients", Map.class);
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                Aggregation.newAggregation(match, group), "patients", Document.class);
 
         Map<String, Long> counts = new LinkedHashMap<>();
-        for (Map doc : results.getMappedResults()) {
+        for (Document doc : results.getMappedResults()) {
             Object id = doc.get("_id");
             if (id != null) {
                 Object count = doc.get("count");

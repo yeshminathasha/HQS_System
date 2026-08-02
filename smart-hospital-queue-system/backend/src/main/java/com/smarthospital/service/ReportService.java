@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.aggregation.GroupOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
+import org.bson.Document;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,11 +51,11 @@ public class ReportService {
     private Map<String, Long> countBy(Criteria day, String groupField) {
         MatchOperation match = Aggregation.match(day);
         GroupOperation group = Aggregation.group(groupField).count().as("count");
-        AggregationResults<Map> results = mongoTemplate.aggregate(
-                Aggregation.newAggregation(match, group), "patients", Map.class);
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                Aggregation.newAggregation(match, group), "patients", Document.class);
 
         Map<String, Long> counts = new LinkedHashMap<>();
-        for (Map doc : results.getMappedResults()) {
+        for (Document doc : results.getMappedResults()) {
             Object id = doc.get("_id");
             if (id != null) {
                 Object count = doc.get("count");
@@ -70,9 +71,9 @@ public class ReportService {
                         .and("status").is(PatientStatus.COMPLETED)
                         .and("waitMinutes").gt(0));
         GroupOperation group = Aggregation.group().avg("waitMinutes").as("avg");
-        AggregationResults<Map> results = mongoTemplate.aggregate(
-                Aggregation.newAggregation(match, group), "patients", Map.class);
-        List<Map> mapped = results.getMappedResults();
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                Aggregation.newAggregation(match, group), "patients", Document.class);
+        List<Document> mapped = results.getMappedResults();
         if (mapped.isEmpty()) {
             return null;
         }

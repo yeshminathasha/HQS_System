@@ -6,7 +6,7 @@ spring:
     name: smart-hospital-backend
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/smarthospital}
+      uri: ${MONGODB_URI:mongodb+srv://HQS:HSQ%40123@hqmsystem.4vhpukm.mongodb.net/smarthospital?retryWrites=true&w=majority&appName=HQMsystem}
       auto-index-creation: true
 
 cors:
@@ -17,4 +17,5 @@ queue:
 
 logging:
   level:
-    com.smarthospital: INFO
+    com:
+      smarthospital: INFO

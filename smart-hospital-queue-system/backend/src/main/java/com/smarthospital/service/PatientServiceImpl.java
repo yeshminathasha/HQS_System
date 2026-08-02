@@ -1,5 +1,7 @@
 package com.smarthospital.service;
 
+import com.smarthospital.datastructure.DoublyLinkedList;
+import com.smarthospital.datastructure.LinkedList;
 import com.smarthospital.dto.PatientRequest;
 import com.smarthospital.dto.PatientResponse;
 import com.smarthospital.dto.WaitTimeResponse;
@@ -70,7 +72,7 @@ public class PatientServiceImpl implements PatientService {
         }
         applyOptionalFilters(query, search, department, doctor, emergency);
         query.with(queueSort());
-        return toResponses(mongoTemplate.find(query, Patient.class));
+        return toResponses(getSortedActiveQueue().toList());
     }
 
     @Override
@@ -79,7 +81,14 @@ public class PatientServiceImpl implements PatientService {
         query.addCriteria(Criteria.where("status").in(HISTORY_STATUSES));
         applyOptionalFilters(query, search, null, null, null);
         query.with(Sort.by(Sort.Direction.DESC, "registeredAt"));
-        return toResponses(mongoTemplate.find(query, Patient.class));
+        // Doubly linked list applied: the patient history list keeps the newest
+        // record at the head, so both forward (next) and backward (prev)
+        // traversal are possible without re-sorting the data.
+        DoublyLinkedList<Patient> history = new DoublyLinkedList<>();
+        for (Patient patient : mongoTemplate.find(query, Patient.class)) {
+            history.addLast(patient);
+        }
+        return toResponses(history.toList());
     }
 
     @Override
@@ -134,7 +143,7 @@ public class PatientServiceImpl implements PatientService {
 
     @Override
     public WaitTimeResponse getEstimatedWaitingTime(String patientId) {
-        List<Patient> active = getSortedActiveQueue();
+        LinkedList<Patient> active = getSortedActiveQueue();
         for (int i = 0; i < active.size(); i++) {
             if (active.get(i).getPatientId().equalsIgnoreCase(patientId)) {
                 return new WaitTimeResponse(patientId, i + 1, i, (long) i * avgServiceMinutes);
@@ -159,11 +168,17 @@ public class PatientServiceImpl implements PatientService {
                 .orElseThrow(() -> new PatientNotFoundException(patientId));
     }
 
-    List<Patient> getSortedActiveQueue() {
+    LinkedList<Patient> getSortedActiveQueue() {
         Query query = new Query();
         query.addCriteria(Criteria.where("status").in(ACTIVE_STATUSES));
         query.with(queueSort());
-        return mongoTemplate.find(query, Patient.class);
+        // Linked list applied: the waiting queue is represented as a linked list,
+        // patients are enqueued (addLast) head-to-tail in priority order.
+        LinkedList<Patient> queue = new LinkedList<>();
+        for (Patient patient : mongoTemplate.find(query, Patient.class)) {
+            queue.addLast(patient);
+        }
+        return queue;
     }
 
     private Sort queueSort() {

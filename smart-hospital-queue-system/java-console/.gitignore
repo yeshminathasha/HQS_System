@@ -1,0 +1,14 @@
+# Java Build Files
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# IDE Specific Files
+.idea/
+.vscode/
+*.iml

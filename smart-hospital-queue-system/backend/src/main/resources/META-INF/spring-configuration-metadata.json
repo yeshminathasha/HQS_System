@@ -1,0 +1,17 @@
+{
+  "properties": [
+    {
+      "name": "cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed CORS origins.",
+      "defaultValue": "http://localhost:3000"
+    },
+    {
+      "name": "queue.avg-service-minutes",
+      "type": "java.lang.Integer",
+      "description": "Average service minutes per patient used to estimate wait times.",
+      "defaultValue": "15"
+    }
+  ],
+  "hints": []
+}

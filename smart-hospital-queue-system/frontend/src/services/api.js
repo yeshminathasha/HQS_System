@@ -24,6 +24,7 @@ api.interceptors.response.use(
 export const patientService = {
   getQueue: (params) => api.get('/patients/queue', { params }),
   getHistory: (params) => api.get('/patients/history', { params }),
+  getPatientHistory: (id, params) => api.get(`/patients/${id}/history`, { params }),
   getPatient: (id) => api.get(`/patients/${id}`),
   registerPatient: (data) => api.post('/patients', data),
   updatePatient: (id, data) => api.put(`/patients/${id}`, data),
@@ -35,6 +36,7 @@ export const patientService = {
 export const appointmentService = {
   getAppointments: (params) => api.get('/appointments', { params }),
   createAppointment: (data) => api.post('/appointments', data),
+  updateAppointment: (id, data) => api.put(`/appointments/${id}`, data),
   updateStatus: (id, status) => api.patch(`/appointments/${id}/status`, { status }),
 };
 

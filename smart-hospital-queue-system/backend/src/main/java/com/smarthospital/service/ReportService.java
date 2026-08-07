@@ -5,7 +5,7 @@ import com.smarthospital.entity.PatientStatus;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.GroupOperation;
+import org.springframework.data.mongodb.core.aggregation.FacetOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
@@ -30,8 +30,21 @@ public class ReportService {
         LocalDateTime end = date.plusDays(1).atStartOfDay();
         Criteria day = Criteria.where("registeredAt").gte(start).lt(end);
 
-        Map<String, Long> byStatus = countBy(day, "status");
-        Long avgWait = averageWait(start, end);
+        MatchOperation dayMatch = Aggregation.match(day);
+        FacetOperation facet = Aggregation.facet()
+                .and(Aggregation.group("status").count().as("count")).as("byStatus")
+                .and(Aggregation.group("department").count().as("count")).as("byDepartment")
+                .and(Aggregation.group("doctorName").count().as("count")).as("byDoctor")
+                .and(Aggregation.match(Criteria.where("status").is(PatientStatus.COMPLETED).and("waitMinutes").gt(0)),
+                        Aggregation.group().avg("waitMinutes").as("avg")).as("avgWait");
+
+        AggregationResults<Map> results = mongoTemplate.aggregate(
+                Aggregation.newAggregation(dayMatch, facet), "patients", Map.class);
+
+        Map<String, Long> byStatus = countFacet("byStatus", results);
+        Map<String, Long> byDepartment = countFacet("byDepartment", results);
+        Map<String, Long> byDoctor = countFacet("byDoctor", results);
+        Long avgWait = averageFacet(results);
 
         DailyReport report = new DailyReport();
         report.setDate(date);
@@ -42,41 +55,40 @@ public class ReportService {
         report.setTotalRegistered(byStatus.values().stream().mapToLong(Long::longValue).sum());
         report.setAvgWaitMinutes(avgWait);
 
-        countBy(day, "department").forEach((name, count) -> report.getByDepartment().add(new DailyReport.Stat(name, count)));
-        countBy(day, "doctorName").forEach((name, count) -> report.getByDoctor().add(new DailyReport.Stat(name, count)));
+        byDepartment.forEach((name, count) -> report.getByDepartment().add(new DailyReport.Stat(name, count)));
+        byDoctor.forEach((name, count) -> report.getByDoctor().add(new DailyReport.Stat(name, count)));
         return report;
     }
 
-    private Map<String, Long> countBy(Criteria day, String groupField) {
-        MatchOperation match = Aggregation.match(day);
-        GroupOperation group = Aggregation.group(groupField).count().as("count");
-        AggregationResults<Map> results = mongoTemplate.aggregate(
-                Aggregation.newAggregation(match, group), "patients", Map.class);
-
+    private Map<String, Long> countFacet(String facetName, AggregationResults<Map> results) {
         Map<String, Long> counts = new LinkedHashMap<>();
-        for (Map doc : results.getMappedResults()) {
-            Object id = doc.get("_id");
+        List<Map> rows = facetRows(facetName, results);
+        for (Map row : rows) {
+            Object id = row.get("_id");
+            Object count = row.get("count");
             if (id != null) {
-                Object count = doc.get("count");
                 counts.put(id.toString(), count instanceof Number n ? n.longValue() : 0L);
             }
         }
         return counts;
     }
 
-    private Long averageWait(LocalDateTime start, LocalDateTime end) {
-        MatchOperation match = Aggregation.match(
-                Criteria.where("registeredAt").gte(start).lt(end)
-                        .and("status").is(PatientStatus.COMPLETED)
-                        .and("waitMinutes").gt(0));
-        GroupOperation group = Aggregation.group().avg("waitMinutes").as("avg");
-        AggregationResults<Map> results = mongoTemplate.aggregate(
-                Aggregation.newAggregation(match, group), "patients", Map.class);
-        List<Map> mapped = results.getMappedResults();
-        if (mapped.isEmpty()) {
-            return null;
+    private Long averageFacet(AggregationResults<Map> results) {
+        List<Map> rows = facetRows("avgWait", results);
+        if (!rows.isEmpty()) {
+            Object avg = rows.get(0).get("avg");
+            if (avg instanceof Number n) {
+                return n.longValue();
+            }
         }
-        Object avg = mapped.get(0).get("avg");
-        return avg instanceof Number n ? n.longValue() : null;
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map> facetRows(String facetName, AggregationResults<Map> results) {
+        Object facet = results.getMappedResults().stream().findFirst()
+                .map(map -> map.get(facetName))
+                .orElse(null);
+        return facet instanceof List<?> list ? (List<Map>) list : List.of();
     }
 }

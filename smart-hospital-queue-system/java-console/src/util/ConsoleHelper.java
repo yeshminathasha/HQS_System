@@ -9,12 +9,14 @@ public class ConsoleHelper {
         System.out.println("1. Register New Patient");
         System.out.println("2. Update Patient Details");
         System.out.println("3. Cancel Appointment");
-        System.out.println("4. Search Patient by ID");
-        System.out.println("5. Search Patient by Name");
-        System.out.println("6. Display Live Queue");
-        System.out.println("7. View Estimated Waiting Time");
-        System.out.println("8. Recommend Doctor");
-        System.out.println("9. View Appointment History");
+        System.out.println("4. Call Next Patient");
+        System.out.println("5. Complete Consultation");
+        System.out.println("6. Search Patient by ID");
+        System.out.println("7. Search Patient by Name");
+        System.out.println("8. Display Live Queue");
+        System.out.println("9. View Estimated Waiting Time");
+        System.out.println("10. Recommend Doctor");
+        System.out.println("11. View Appointment History");
         System.out.println("0. Exit");
         System.out.print("Enter choice: ");
     }
@@ -26,13 +28,13 @@ public class ConsoleHelper {
         }
         
         System.out.println("-----------------------------------------------------------------------------------------------------------------------");
-        System.out.printf("| %-10s | %-15s | %-12s | %-12s | %-15s | %-10s | %-10s | %-8s |\n", 
-                          "ID", "Name", "Contact", "Department", "Doctor", "Date", "Emergency", "Priority");
+        System.out.printf("| %-10s | %-15s | %-12s | %-12s | %-15s | %-10s | %-10s | %-8s | %-15s |\n", 
+                          "ID", "Name", "Contact", "Department", "Doctor", "Date", "Emergency", "Priority", "Status");
         System.out.println("-----------------------------------------------------------------------------------------------------------------------");
         
         for (Patient p : patients) {
             if (p != null) {
-                System.out.printf("| %-10s | %-15s | %-12s | %-12s | %-15s | %-10s | %-10s | %-8d |\n",
+                System.out.printf("| %-10s | %-15s | %-12s | %-12s | %-15s | %-10s | %-10s | %-8d | %-15s |\n",
                         p.getPatientId(),
                         truncate(p.getName(), 15),
                         truncate(p.getContactNumber(), 12),
@@ -40,7 +42,8 @@ public class ConsoleHelper {
                         truncate(p.getDoctorName(), 15),
                         p.getAppointmentDate(),
                         p.isEmergency() ? "Yes" : "No",
-                        p.getPriorityLevel());
+                        p.getPriorityLevel(),
+                        truncate(p.getStatus(), 15));
             }
         }
         System.out.println("-----------------------------------------------------------------------------------------------------------------------");

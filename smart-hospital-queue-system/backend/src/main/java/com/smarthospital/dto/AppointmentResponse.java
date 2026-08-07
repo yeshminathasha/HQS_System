@@ -1,5 +1,7 @@
 package com.smarthospital.dto;
 
+import com.smarthospital.entity.AppointmentStatus;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -12,7 +14,7 @@ public class AppointmentResponse {
     private String department;
     private LocalDate appointmentDate;
     private String appointmentTime;
-    private String status;
+    private AppointmentStatus status;
     private LocalDateTime createdAt;
 
     public String getId() { return id; }
@@ -36,8 +38,8 @@ public class AppointmentResponse {
     public String getAppointmentTime() { return appointmentTime; }
     public void setAppointmentTime(String appointmentTime) { this.appointmentTime = appointmentTime; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public AppointmentStatus getStatus() { return status; }
+    public void setStatus(AppointmentStatus status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

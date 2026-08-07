@@ -34,6 +34,23 @@ public class InputValidator {
         return value;
     }
 
+    public static int getIntInRange(Scanner sc, String prompt, int min, int max) {
+        int value;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                value = Integer.parseInt(sc.nextLine().trim());
+                if (value >= min && value <= max) {
+                    break;
+                }
+                System.out.println("Value must be between " + min + " and " + max + ".");
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number format. Please enter an integer.");
+            }
+        }
+        return value;
+    }
+
     public static boolean getBoolean(Scanner sc, String prompt) {
         String input;
         while (true) {

@@ -2,6 +2,8 @@ package com.smarthospital.controller;
 
 import com.smarthospital.dto.AppointmentRequest;
 import com.smarthospital.dto.AppointmentResponse;
+import com.smarthospital.dto.AppointmentStatusRequest;
+import com.smarthospital.dto.PageResponse;
 import com.smarthospital.service.AppointmentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -9,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -28,23 +29,25 @@ public class AppointmentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AppointmentResponse>> getAppointments(
+    public ResponseEntity<PageResponse<AppointmentResponse>> getAppointments(
             @RequestParam(required = false) String doctor,
             @RequestParam(required = false) LocalDate date,
-            @RequestParam(required = false) Boolean upcoming) {
-        return ResponseEntity.ok(appointmentService.getAppointments(doctor, date, upcoming));
+            @RequestParam(required = false) Boolean upcoming,
+            @RequestParam(required = false) String patientId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(appointmentService.getAppointments(doctor, date, upcoming, patientId, page, size));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<AppointmentResponse> updateAppointment(@PathVariable("id") String id,
+                                                                 @Valid @RequestBody AppointmentRequest request) {
+        return ResponseEntity.ok(appointmentService.updateAppointment(id, request));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<AppointmentResponse> updateStatus(@PathVariable("id") String id,
-                                                            @RequestBody AppointmentStatusRequest request) {
+                                                            @Valid @RequestBody AppointmentStatusRequest request) {
         return ResponseEntity.ok(appointmentService.updateStatus(id, request.getStatus()));
-    }
-
-    public static class AppointmentStatusRequest {
-        private String status;
-
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
     }
 }

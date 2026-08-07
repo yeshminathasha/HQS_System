@@ -2,6 +2,7 @@ package com.smarthospital.controller;
 
 import com.smarthospital.dto.PatientRequest;
 import com.smarthospital.dto.PatientResponse;
+import com.smarthospital.dto.PageResponse;
 import com.smarthospital.dto.StatusUpdateRequest;
 import com.smarthospital.dto.WaitTimeResponse;
 import com.smarthospital.service.PatientService;
@@ -39,8 +40,19 @@ public class PatientController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<List<PatientResponse>> getHistory(@RequestParam(required = false) String search) {
-        return ResponseEntity.ok(patientService.getHistory(search));
+    public ResponseEntity<PageResponse<PatientResponse>> getHistory(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(patientService.getHistory(search, page, size));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<PageResponse<PatientResponse>> getPatientHistory(
+            @PathVariable("id") String patientId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(patientService.getPatientHistory(patientId, page, size));
     }
 
     @GetMapping("/{id}")

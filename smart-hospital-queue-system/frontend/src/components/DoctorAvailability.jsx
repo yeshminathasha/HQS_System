@@ -1,6 +1,17 @@
 import React from 'react';
 import { User, CalendarClock } from 'lucide-react';
 
+const DAY_LABELS = { MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun' };
+
+function scheduleLabel(doctor) {
+  if (!doctor.workDays || doctor.workDays.length === 0) return 'Schedule not set';
+  const days = doctor.workDays.map((d) => DAY_LABELS[d] || d).join('-');
+  if (doctor.startTime && doctor.endTime) {
+    return `${days} ${doctor.startTime}-${doctor.endTime}`;
+  }
+  return days;
+}
+
 export default function DoctorAvailability({ doctors = [], workload = [], loading = false, recommended = null }) {
   const countFor = (doctorName) => {
     const entry = workload.find((w) => w.doctorName === doctorName);
@@ -21,7 +32,7 @@ export default function DoctorAvailability({ doctors = [], workload = [], loadin
     <div className="space-y-4">
       {recommended && (
         <div className="rounded-md bg-success-500/10 border border-success-500/30 px-4 py-3 text-sm">
-          <span className="font-medium text-success-500">Recommended: </span>
+          <span className="font-medium text-success-600">Recommended: </span>
           <span className="text-gray-700">
             {recommended.doctorName} ({recommended.department}) — {recommended.queueCount} waiting
           </span>
@@ -33,7 +44,7 @@ export default function DoctorAvailability({ doctors = [], workload = [], loadin
         return (
           <div key={doctor.name} className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 mr-3">
+              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 mr-3 shrink-0">
                 <User className="h-4 w-4" />
               </div>
               <div className="min-w-0">
@@ -53,9 +64,11 @@ export default function DoctorAvailability({ doctors = [], workload = [], loadin
           </div>
         );
       })}
-      <div className="pt-2 flex items-center text-xs text-gray-400">
-        <CalendarClock className="h-3.5 w-3.5 mr-1.5" />
-        Schedule: Mon-Fri 09:00-17:00 (varies by doctor)
+      <div className="pt-2 flex items-start text-xs text-gray-400">
+        <CalendarClock className="h-3.5 w-3.5 mr-1.5 mt-0.5 shrink-0" />
+        <span>
+          Schedules: {doctorsToShow.map((d) => `${d.name} (${scheduleLabel(d)})`).join(' · ')}
+        </span>
       </div>
     </div>
   );

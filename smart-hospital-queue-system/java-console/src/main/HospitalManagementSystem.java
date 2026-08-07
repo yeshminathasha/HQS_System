@@ -5,6 +5,7 @@ import service.HospitalService;
 import util.ConsoleHelper;
 import util.InputValidator;
 
+import java.time.LocalDate;
 import java.util.Scanner;
 
 public class HospitalManagementSystem {
@@ -14,9 +15,10 @@ public class HospitalManagementSystem {
         Scanner sc = new Scanner(System.in);
         
         // Dummy data uses the proper constructor
-        service.registerPatient(new Patient("P001", "John Doe", "1234567890", "Cardiology", "Dr. Smith", "2026-08-01", "10:00", false, 0, "Waiting"));
-        service.registerPatient(new Patient("P002", "Jane Smith", "0987654321", "Neurology", "Dr. Jones", "2026-08-01", "10:30", true, 1, "Waiting"));
-        service.registerPatient(new Patient("P003", "Alice Brown", "1112223333", "General", "Dr. Adams", "2026-08-01", "11:00", false, 0, "Waiting"));
+        String today = LocalDate.now().toString();
+        service.registerPatient(new Patient("P001", "John Doe", "1234567890", "Cardiology", "Dr. Smith", today, "10:00", false, 0, "Waiting"));
+        service.registerPatient(new Patient("P002", "Jane Smith", "0987654321", "Neurology", "Dr. Jones", today, "10:30", true, 1, "Waiting"));
+        service.registerPatient(new Patient("P003", "Alice Brown", "1112223333", "General", "Dr. Adams", today, "11:00", false, 0, "Waiting"));
 
         System.out.println("Welcome to Smart Hospital Patient Queue System!");
         
@@ -36,21 +38,27 @@ public class HospitalManagementSystem {
                     cancelAppointment(service, sc);
                     break;
                 case 4:
-                    searchById(service, sc);
+                    callNext(service, sc);
                     break;
                 case 5:
-                    searchByName(service, sc);
+                    completeConsultation(service, sc);
                     break;
                 case 6:
-                    displayQueue(service);
+                    searchById(service, sc);
                     break;
                 case 7:
-                    viewWaitTime(service, sc);
+                    searchByName(service, sc);
                     break;
                 case 8:
-                    recommendDoctor(service);
+                    displayQueue(service);
                     break;
                 case 9:
+                    viewWaitTime(service, sc);
+                    break;
+                case 10:
+                    recommendDoctor(service);
+                    break;
+                case 11:
                     displayHistory(service);
                     break;
                 case 0:
@@ -58,7 +66,7 @@ public class HospitalManagementSystem {
                     System.out.println("Exiting System. Goodbye!");
                     break;
                 default:
-                    System.out.println("Invalid choice. Please enter a number between 0 and 9.");
+                    System.out.println("Invalid choice. Please enter a number between 0 and 11.");
             }
         }
         sc.close();
@@ -80,7 +88,7 @@ public class HospitalManagementSystem {
         boolean emergency = InputValidator.getBoolean(sc, "Is Emergency?");
         int priority = 0;
         if (emergency) {
-            priority = InputValidator.getInt(sc, "Enter Priority Level (1-High, 2-Medium, 3-Low): ");
+            priority = InputValidator.getIntInRange(sc, "Enter Priority Level (1-High, 2-Medium, 3-Low): ", 1, 3);
         }
 
         Patient p = new Patient(id, name, contact, dept, doctor, date, time, emergency, priority, "Waiting");
@@ -106,7 +114,7 @@ public class HospitalManagementSystem {
         boolean emergency = InputValidator.getBoolean(sc, "Is Emergency? (" + existing.isEmergency() + ")");
         int priority = 0;
         if (emergency) {
-            priority = InputValidator.getInt(sc, "Enter Priority Level: ");
+            priority = InputValidator.getIntInRange(sc, "Enter Priority Level: ", 1, 3);
         }
 
         Patient updated = new Patient(id, name, contact, dept, doctor, date, time, emergency, priority, "Waiting");
@@ -124,6 +132,26 @@ public class HospitalManagementSystem {
             System.out.println("Appointment cancelled for: " + cancelled.getName());
         } else {
             System.out.println("Patient not found in active queue.");
+        }
+    }
+
+    private static void callNext(HospitalService service, Scanner sc) {
+        String id = InputValidator.getString(sc, "Enter Patient ID to Call: ");
+        Patient patient = service.callNext(id);
+        if (patient != null) {
+            System.out.println("Called next: " + patient.getName() + " (" + patient.getPatientId() + ")");
+        } else {
+            System.out.println("Patient not found in active queue.");
+        }
+    }
+
+    private static void completeConsultation(HospitalService service, Scanner sc) {
+        String id = InputValidator.getString(sc, "Enter Patient ID to Complete: ");
+        Patient patient = service.completeConsultation(id);
+        if (patient != null) {
+            System.out.println("Consultation completed for: " + patient.getName());
+        } else {
+            System.out.println("Patient not found or not in consultation.");
         }
     }
 

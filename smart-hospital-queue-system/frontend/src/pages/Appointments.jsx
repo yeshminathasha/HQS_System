@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { CalendarPlus, X } from 'lucide-react';
 import { appointmentService, doctorService } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
+import { useToast } from '../components/ui/ToastProvider';
+import Pagination from '../components/ui/Pagination';
 
 const STATUS_STYLES = {
   SCHEDULED: { label: 'Scheduled', variant: 'warning' },
@@ -11,44 +13,105 @@ const STATUS_STYLES = {
   CANCELLED: { label: 'Cancelled', variant: 'neutral' },
 };
 
+const PAGE_SIZE = 20;
+const EMPTY_FORM = { patientId: '', doctorName: '', department: 'General', appointmentDate: '', appointmentTime: '' };
+
+function todayLocal() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 export default function Appointments() {
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [upcomingOnly, setUpcomingOnly] = useState(true);
-  const [form, setForm] = useState({
-    patientId: '',
-    doctorName: '',
-    department: 'General',
-    appointmentDate: '',
-    appointmentTime: '',
-  });
+  const [page, setPage] = useState(0);
+  const [patientFilter, setPatientFilter] = useState('');
+  const [debouncedPatient, setDebouncedPatient] = useState('');
+  const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState(null);
+  const toast = useToast();
 
-  const { data: appointments, loading, error: listError, refresh } = usePolling(
-    () => appointmentService.getAppointments({ upcoming: upcomingOnly }).then((r) => r.data),
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedPatient(patientFilter.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [patientFilter]);
+
+  const { data: pageData, loading, error: listError, refresh } = usePolling(
+    () =>
+      appointmentService
+        .getAppointments({
+          upcoming: upcomingOnly,
+          patientId: debouncedPatient || undefined,
+          page,
+          size: PAGE_SIZE,
+        })
+        .then((r) => r.data),
     15000,
-    [upcomingOnly]
+    [upcomingOnly, debouncedPatient, page]
   );
   const { data: doctors } = usePolling(() => doctorService.getDoctors().then((r) => r.data), 60000);
+
+  const appointments = pageData?.content || [];
+  const totalPages = pageData?.totalPages || 0;
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (appt) => {
+    setEditingId(appt.id);
+    setForm({
+      patientId: appt.patientId,
+      doctorName: appt.doctorName,
+      department: appt.department,
+      appointmentDate: appt.appointmentDate,
+      appointmentTime: appt.appointmentTime,
+    });
+    setError(null);
+    setShowModal(true);
+  };
+
+  const handleDoctorChange = (doctorName) => {
+    const doctor = (doctors || []).find((d) => d.name === doctorName);
+    setForm({ ...form, doctorName, department: doctor ? doctor.department : form.department });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
-      await appointmentService.createAppointment(form);
+      if (editingId) {
+        await appointmentService.updateAppointment(editingId, form);
+        toast.success('Appointment rescheduled');
+      } else {
+        await appointmentService.createAppointment(form);
+        toast.success('Appointment booked');
+      }
       setShowModal(false);
-      setForm({ patientId: '', doctorName: '', department: 'General', appointmentDate: '', appointmentTime: '' });
+      setForm(EMPTY_FORM);
+      setEditingId(null);
       refresh();
     } catch (err) {
-      setError(err.displayMessage || 'Failed to book appointment');
+      setError(err.displayMessage || 'Failed to save appointment');
     }
   };
 
-  const handleStatus = async (appointment, status) => {
+  const handleStatus = async (appointment, status, label) => {
+    const confirmed = await toast.confirm(`${label} the appointment for ${appointment.patientName} (${appointment.patientId})?`);
+    if (!confirmed) return;
     try {
       await appointmentService.updateStatus(appointment.id, status);
+      toast.success(`Appointment ${label.toLowerCase()}`);
       refresh();
     } catch (err) {
-      alert(err.displayMessage || 'Failed to update appointment');
+      toast.error(err.displayMessage || 'Failed to update appointment');
     }
   };
 
@@ -62,94 +125,115 @@ export default function Appointments() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-gray-500 text-sm mt-1">Book and manage patient appointments.</p>
+          <p className="text-gray-500 text-sm mt-1">Book, reschedule and manage patient appointments.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={openCreate}>
           <CalendarPlus className="h-4 w-4 mr-2" />
           New Appointment
         </button>
       </div>
 
       <Card>
-        <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-4">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4 border-b border-gray-100 pb-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setUpcomingOnly(true)}
+              onClick={() => { setUpcomingOnly(true); setPage(0); }}
               className={`px-3 py-1.5 rounded-md text-sm font-medium ${upcomingOnly ? 'bg-primary-50 text-primary-700' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               Upcoming
             </button>
             <button
-              onClick={() => setUpcomingOnly(false)}
+              onClick={() => { setUpcomingOnly(false); setPage(0); }}
               className={`px-3 py-1.5 rounded-md text-sm font-medium ${!upcomingOnly ? 'bg-primary-50 text-primary-700' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               All
             </button>
           </div>
+          <input
+            type="text"
+            className="input-field w-full lg:w-56"
+            placeholder="Filter by patient ID (e.g. P001)"
+            value={patientFilter}
+            onChange={(e) => setPatientFilter(e.target.value)}
+          />
           {listError && <span className="text-xs text-danger-600">{listError.displayMessage}</span>}
         </div>
 
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading appointments...</div>
-        ) : (appointments || []).length === 0 ? (
+        ) : appointments.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No appointments found.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Patient</th>
-                  <th className="px-4 py-3 font-medium">Doctor</th>
-                  <th className="px-4 py-3 font-medium">Department</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Time</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(appointments || []).map((appt) => (
-                  <tr key={appt.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <span className="font-medium text-gray-900">{appt.patientName}</span>
-                      <span className="text-gray-400 text-xs ml-1">({appt.patientId})</span>
-                    </td>
-                    <td className="px-4 py-4 text-gray-700">{appt.doctorName}</td>
-                    <td className="px-4 py-4 text-gray-500">{appt.department}</td>
-                    <td className="px-4 py-4 text-gray-500">{appt.appointmentDate}</td>
-                    <td className="px-4 py-4 text-gray-500">{appt.appointmentTime}</td>
-                    <td className="px-4 py-4">{badge(appt.status)}</td>
-                    <td className="px-4 py-4 text-right space-x-3">
-                      {appt.status === 'SCHEDULED' && (
-                        <>
-                          <button
-                            onClick={() => handleStatus(appt, 'COMPLETED')}
-                            className="text-success-600 hover:text-success-900 font-medium text-xs"
-                          >
-                            Complete
-                          </button>
-                          <button
-                            onClick={() => handleStatus(appt, 'CANCELLED')}
-                            className="text-danger-600 hover:text-danger-900 font-medium text-xs"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Patient</th>
+                    <th className="px-4 py-3 font-medium">Doctor</th>
+                    <th className="px-4 py-3 font-medium">Department</th>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Time</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {appointments.map((appt) => (
+                    <tr key={appt.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <span className="font-medium text-gray-900">{appt.patientName}</span>
+                        <span className="text-gray-400 text-xs ml-1">({appt.patientId})</span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">{appt.doctorName}</td>
+                      <td className="px-4 py-4 text-gray-500">{appt.department}</td>
+                      <td className="px-4 py-4 text-gray-500">{appt.appointmentDate}</td>
+                      <td className="px-4 py-4 text-gray-500">{appt.appointmentTime}</td>
+                      <td className="px-4 py-4">{badge(appt.status)}</td>
+                      <td className="px-4 py-4 text-right space-x-3">
+                        {appt.status === 'SCHEDULED' && (
+                          <>
+                            <button
+                              onClick={() => openEdit(appt)}
+                              className="text-primary-600 hover:text-primary-900 font-medium text-xs"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              onClick={() => handleStatus(appt, 'COMPLETED', 'Complete')}
+                              className="text-success-600 hover:text-success-900 font-medium text-xs"
+                            >
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => handleStatus(appt, 'CANCELLED', 'Cancel')}
+                              className="text-danger-600 hover:text-danger-900 font-medium text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalElements={pageData?.totalElements}
+              onPageChange={setPage}
+            />
+          </>
         )}
       </Card>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Book appointment">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label={editingId ? 'Reschedule appointment' : 'Book appointment'}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">New Appointment</h2>
+              <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Reschedule Appointment' : 'New Appointment'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close">
                 <X className="h-5 w-5" />
               </button>
@@ -168,6 +252,7 @@ export default function Appointments() {
                   className="input-field"
                   placeholder="P001"
                   value={form.patientId}
+                  disabled={!!editingId}
                   onChange={(e) => setForm({ ...form, patientId: e.target.value })}
                 />
               </div>
@@ -177,7 +262,7 @@ export default function Appointments() {
                   required
                   className="input-field"
                   value={form.doctorName}
-                  onChange={(e) => setForm({ ...form, doctorName: e.target.value })}
+                  onChange={(e) => handleDoctorChange(e.target.value)}
                 >
                   <option value="">Select a doctor</option>
                   {(doctors || []).map((doctor) => (
@@ -191,11 +276,10 @@ export default function Appointments() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                   <input
-                    required
+                    readOnly
                     type="text"
-                    className="input-field"
+                    className="input-field bg-gray-50"
                     value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value })}
                   />
                 </div>
                 <div>
@@ -203,6 +287,7 @@ export default function Appointments() {
                   <input
                     required
                     type="date"
+                    min={todayLocal()}
                     className="input-field"
                     value={form.appointmentDate}
                     onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })}
@@ -221,7 +306,9 @@ export default function Appointments() {
               </div>
               <div className="pt-4 flex justify-end space-x-3">
                 <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Book Appointment</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingId ? 'Save Changes' : 'Book Appointment'}
+                </button>
               </div>
             </form>
           </div>

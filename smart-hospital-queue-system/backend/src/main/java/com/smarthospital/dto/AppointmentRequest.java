@@ -3,18 +3,22 @@ package com.smarthospital.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
 public class AppointmentRequest {
 
     @NotBlank(message = "Patient ID is required")
+    @Size(max = 20, message = "Patient ID must be at most 20 characters")
     private String patientId;
 
     @NotBlank(message = "Doctor name is required")
+    @Size(max = 100, message = "Doctor name must be at most 100 characters")
     private String doctorName;
 
     @NotBlank(message = "Department is required")
+    @Size(max = 100, message = "Department must be at most 100 characters")
     private String department;
 
     @NotNull(message = "Appointment date is required")

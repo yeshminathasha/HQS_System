@@ -1,6 +1,7 @@
 package com.smarthospital.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -8,11 +9,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Document(collection = "appointments")
+@CompoundIndex(name = "slot_lookup", def = "{'doctorName': 1, 'appointmentDate': 1, 'appointmentTime': 1}")
+@CompoundIndex(name = "patient_slot_lookup", def = "{'patientId': 1, 'appointmentDate': 1, 'appointmentTime': 1}")
 public class Appointment {
-
-    public static final String SCHEDULED = "SCHEDULED";
-    public static final String COMPLETED = "COMPLETED";
-    public static final String CANCELLED = "CANCELLED";
 
     @Id
     private String id;
@@ -24,11 +23,11 @@ public class Appointment {
     @Indexed
     private LocalDate appointmentDate;
     private String appointmentTime;
-    private String status;
+    private AppointmentStatus status;
     private LocalDateTime createdAt;
 
     public Appointment() {
-        this.status = SCHEDULED;
+        this.status = AppointmentStatus.SCHEDULED;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -53,8 +52,8 @@ public class Appointment {
     public String getAppointmentTime() { return appointmentTime; }
     public void setAppointmentTime(String appointmentTime) { this.appointmentTime = appointmentTime; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public AppointmentStatus getStatus() { return status; }
+    public void setStatus(AppointmentStatus status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

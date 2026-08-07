@@ -10,7 +10,7 @@ Doubly Linked List data structures.
 
 ```
 ┌─────────────────┐      HTTP/JSON       ┌──────────────────┐      Mongo Driver       ┌──────────────┐
-│  React + Vite   │ ───────────────────► │  Spring Boot 3   │ ─────────────────────► │   MongoDB    │
+│  React + Vite   │ ───────────────────► │  Spring Boot 4  │ ─────────────────────► │   MongoDB    │
 │  (port 3000)    │  ◄─────────────────── │  (port 8080)    │  ◄───────────────────── │  smarthospital│
 └─────────────────┘  /api proxied + CORS └──────────────────┘                         └──────────────┘
 ```
@@ -54,16 +54,46 @@ history and enabling daily reports. Hard deletion is allowed only for terminal s
 `position_in_sorted_queue × avg-service-minutes` (configurable, default 15). Actual wait
 duration is recorded when a patient is completed (`waitMinutes`) and feeds the daily report.
 
+### Appointment rules
+
+- Booking validates the doctor exists and works on the requested day/time, rejects past
+  dates, and rejects double-booking of the same doctor or patient at the same slot
+  (SCHEDULED appointments only — cancelled/completed slots can be rebooked).
+- A partial unique index (`doctorName, appointmentDate, appointmentTime` where
+  `status = SCHEDULED`) enforces the no-double-booking rule at the database level;
+  a duplicate-key race is surfaced as 409.
+- `PUT /api/appointments/{id}` reschedules a SCHEDULED appointment through the same rules.
+- Denormalized `patientName`/`department` in appointments are re-synced when a patient is updated.
+
+### Pagination
+
+History and appointment list endpoints return a page envelope
+`{ content, page, size, totalElements, totalPages }` (default size 25, max 100), so
+history never grows unbounded. The live queue endpoint intentionally returns the full
+active set — it only contains WAITING / IN_CONSULTATION records.
+
 ### ID generation
 
 P-IDs (`P001`, `P002`, ...) are generated atomically from a `sequences` collection using
 `findOneAndUpdate` with `$inc` + upsert, eliminating the previous race condition and
 post-deletion collision bug. `patientId` has a unique index as a second line of defense.
 
+### Indexes
+
+- `patients.queue_sort` — compound `status → emergency(-1) → priorityLevel → registeredAt`
+  backing the live-queue query
+- `patients.patientId` — unique
+- `appointments.slot_lookup` / `appointments.patient_slot_lookup` — compound lookups for
+  double-booking checks
+- `appointments.uq_scheduled_slot` — partial unique (see Appointment rules), created
+  defensively at startup
+- `doctors.name` — unique
+
 ### Daily report
 
-MongoDB aggregation pipelines group registrations by status, department, and doctor for a
-given day, plus the average measured wait time of completed patients.
+A single MongoDB `$facet` aggregation pipeline groups registrations by status, department,
+and doctor for a given day, plus the average measured wait time of completed patients —
+one round-trip instead of four.
 
 ## Frontend Design
 

@@ -1,12 +1,14 @@
 package com.smarthospital.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
 @Document(collection = "patients")
+@CompoundIndex(name = "queue_sort", def = "{'status': 1, 'emergency': -1, 'priorityLevel': 1, 'registeredAt': 1}")
 public class Patient {
 
     @Id

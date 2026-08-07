@@ -68,6 +68,36 @@ public class HospitalService {
         return patient;
     }
 
+    public Patient callNext(String patientId) {
+        Patient patient = activeQueue.findById(patientId);
+        if (patient == null) {
+            return null;
+        }
+        patient.setStatus("In Consultation");
+        Patient historyEntry = historyList.searchById(patientId);
+        if (historyEntry != null) {
+            historyEntry.setStatus("In Consultation");
+        }
+        return patient;
+    }
+
+    public Patient completeConsultation(String patientId) {
+        Patient patient = activeQueue.findById(patientId);
+        if (patient == null) {
+            return null;
+        }
+        if (!"In Consultation".equalsIgnoreCase(patient.getStatus())) {
+            return null;
+        }
+        patient.setStatus("Completed");
+        activeQueue.deletePatient(patientId);
+        Patient historyEntry = historyList.searchById(patientId);
+        if (historyEntry != null) {
+            historyEntry.setStatus("Completed");
+        }
+        return patient;
+    }
+
     public Patient searchById(String patientId) {
         return activeQueue.findById(patientId);
     }

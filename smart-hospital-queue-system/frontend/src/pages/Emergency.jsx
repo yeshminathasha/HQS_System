@@ -2,9 +2,11 @@ import React from 'react';
 import { Card, CardHeader } from '../components/ui/Card';
 import { patientService } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
+import { useToast } from '../components/ui/ToastProvider';
 import EmergencyPanel from '../components/EmergencyPanel';
 
 export default function Emergency() {
+  const toast = useToast();
   const { data: patients, loading, error, lastUpdated, refresh } = usePolling(
     () => patientService.getQueue({ emergency: true }).then((r) => r.data),
     10000
@@ -13,9 +15,10 @@ export default function Emergency() {
   const handleCallNext = async (patient) => {
     try {
       await patientService.updateStatus(patient.patientId, 'IN_CONSULTATION');
+      toast.success(`${patient.patientId} moved to consultation`);
       refresh();
     } catch (err) {
-      alert(err.displayMessage || 'Failed to update status');
+      toast.error(err.displayMessage || 'Failed to update status');
     }
   };
 

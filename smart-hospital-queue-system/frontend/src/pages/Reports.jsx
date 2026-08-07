@@ -6,7 +6,8 @@ import { usePolling } from '../hooks/usePolling';
 import ReportsView from '../components/ReportsView';
 
 export default function Reports() {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
 
   const { data: report, loading, error } = usePolling(

@@ -3,11 +3,13 @@ package com.smarthospital.service;
 import com.smarthospital.dto.PatientRequest;
 import com.smarthospital.dto.PatientResponse;
 import com.smarthospital.dto.WaitTimeResponse;
+import com.smarthospital.entity.Doctor;
 import com.smarthospital.entity.Patient;
 import com.smarthospital.entity.PatientStatus;
 import com.smarthospital.exception.InvalidStatusTransitionException;
 import com.smarthospital.exception.PatientNotFoundException;
 import com.smarthospital.mapper.PatientMapper;
+import com.smarthospital.repository.DoctorRepository;
 import com.smarthospital.repository.PatientRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,8 @@ class PatientServiceImplTest {
     @Mock
     private PatientRepository patientRepository;
     @Mock
+    private DoctorRepository doctorRepository;
+    @Mock
     private MongoTemplate mongoTemplate;
     @Mock
     private SequenceService sequenceService;
@@ -42,7 +46,7 @@ class PatientServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PatientServiceImpl(patientRepository, mongoTemplate, sequenceService, mapper, 15);
+        service = new PatientServiceImpl(patientRepository, doctorRepository, mongoTemplate, sequenceService, mapper, 15);
     }
 
     private PatientRequest request(String name, boolean emergency, Integer priority) {
@@ -58,6 +62,7 @@ class PatientServiceImplTest {
 
     @Test
     void registerGeneratesSequentialPatientId() {
+        when(doctorRepository.findByName("Dr. Adams")).thenReturn(Optional.of(new Doctor()));
         when(sequenceService.nextValue("patientId")).thenReturn(7L);
         when(patientRepository.save(any(Patient.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -70,6 +75,7 @@ class PatientServiceImplTest {
 
     @Test
     void registerEmergencyWithoutValidPriorityThrows() {
+        when(doctorRepository.findByName("Dr. Adams")).thenReturn(Optional.of(new Doctor()));
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> service.registerPatient(request("Urgent", true, 5)));
         assertTrue(ex.getMessage().contains("1 and 3"));
@@ -78,12 +84,24 @@ class PatientServiceImplTest {
 
     @Test
     void registerNonEmergencyForcesZeroPriority() {
+        when(doctorRepository.findByName("Dr. Adams")).thenReturn(Optional.of(new Doctor()));
         when(sequenceService.nextValue("patientId")).thenReturn(1L);
         when(patientRepository.save(any(Patient.class))).thenAnswer(inv -> inv.getArgument(0));
 
         PatientResponse response = service.registerPatient(request("Normal", false, 2));
 
         assertEquals(0, response.getPriorityLevel());
+    }
+
+    @Test
+    void registerWithUnknownDoctorThrows() {
+        when(doctorRepository.findByName("Dr. Nobody")).thenReturn(Optional.empty());
+
+        PatientRequest r = request("John Doe", false, null);
+        r.setDoctorName("Dr. Nobody");
+
+        assertThrows(IllegalArgumentException.class, () -> service.registerPatient(r));
+        verify(patientRepository, never()).save(any());
     }
 
     @Test

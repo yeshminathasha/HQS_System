@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Plus, Search, X } from 'lucide-react';
 import { patientService, doctorService } from '../services/api';
 import { usePolling } from '../hooks/usePolling';
+import { useToast } from '../components/ui/ToastProvider';
 import PatientForm from '../components/PatientForm';
 import QueueDisplay from '../components/QueueDisplay';
 
 export function PatientQueue() {
+  const [searchParams] = useSearchParams();
   const [showModal, setShowModal] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [emergencyFilter, setEmergencyFilter] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 400);
@@ -38,35 +42,39 @@ export function PatientQueue() {
   const handleRegister = async (formData) => {
     await patientService.registerPatient(formData);
     setShowModal(false);
+    toast.success(`Patient ${formData.name} registered`);
     refresh();
   };
 
   const handleCancel = async (patient) => {
-    if (window.confirm(`Cancel appointment for ${patient.name} (${patient.patientId})?`)) {
-      try {
-        await patientService.cancelPatient(patient.patientId);
-        refresh();
-      } catch (err) {
-        alert(err.displayMessage || 'Failed to cancel appointment');
-      }
+    const confirmed = await toast.confirm(`Cancel appointment for ${patient.name} (${patient.patientId})?`);
+    if (!confirmed) return;
+    try {
+      await patientService.cancelPatient(patient.patientId);
+      toast.success(`Appointment cancelled for ${patient.patientId}`);
+      refresh();
+    } catch (err) {
+      toast.error(err.displayMessage || 'Failed to cancel appointment');
     }
   };
 
   const handleCallNext = async (patient) => {
     try {
       await patientService.updateStatus(patient.patientId, 'IN_CONSULTATION');
+      toast.success(`${patient.patientId} moved to consultation`);
       refresh();
     } catch (err) {
-      alert(err.displayMessage || 'Failed to update status');
+      toast.error(err.displayMessage || 'Failed to update status');
     }
   };
 
   const handleComplete = async (patient) => {
     try {
       await patientService.updateStatus(patient.patientId, 'COMPLETED');
+      toast.success(`${patient.patientId} completed`);
       refresh();
     } catch (err) {
-      alert(err.displayMessage || 'Failed to update status');
+      toast.error(err.displayMessage || 'Failed to update status');
     }
   };
 

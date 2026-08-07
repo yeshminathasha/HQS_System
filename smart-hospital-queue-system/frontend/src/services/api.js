@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+const TOKEN_KEY = "shq_token";
+export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+export const setStoredToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
@@ -10,9 +15,19 @@ const api = axios.create({
   timeout: 10000,
 });
 
+api.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401) {
+      clearStoredToken();
+      window.location.href = "/login";
+    }
     const message =
       error.response?.data?.message ||
       (error.response ? `Request failed (${error.response.status})` : 'Cannot reach the server');

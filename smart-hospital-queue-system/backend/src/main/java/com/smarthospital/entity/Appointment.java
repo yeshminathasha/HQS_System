@@ -58,4 +58,9 @@ public class Appointment {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    private String bookedByUserId; // null for admin-created/front-desk bookings
+
+    public String getBookedByUserId() { return bookedByUserId; }
+    public void setBookedByUserId(String bookedByUserId) { this.bookedByUserId = bookedByUserId; }
 }

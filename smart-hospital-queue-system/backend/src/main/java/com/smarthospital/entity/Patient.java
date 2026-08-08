@@ -69,4 +69,9 @@ public class Patient {
 
     public long getWaitMinutes() { return waitMinutes; }
     public void setWaitMinutes(long waitMinutes) { this.waitMinutes = waitMinutes; }
+
+    private String linkedUserId; 
+
+    public String getLinkedUserId() { return linkedUserId; }
+    public void setLinkedUserId(String linkedUserId) { this.linkedUserId = linkedUserId; }
 }

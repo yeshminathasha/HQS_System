@@ -26,6 +26,17 @@ function App() {
       </Routes>
     </Router>
   );
+
+  <Route path="/app" element={<UserLayout />}>
+  <Route index element={<UserDashboardPage />} />
+  <Route path="book" element={<BookAppointmentPage />} />
+  <Route path="my-appointments" element={<MyAppointmentsPage />} />
+  <Route path="queue" element={<LiveQueuePage />} />
+  <Route path="history" element={<MyHistoryPage />} />
+  <Route path="reports" element={<ReportsReadOnlyPage />} />
+  <Route path="profile" element={<ProfilePage />} />
+</Route>
+
 }
 
 export default App;

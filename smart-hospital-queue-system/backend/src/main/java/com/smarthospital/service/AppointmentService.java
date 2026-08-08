@@ -113,4 +113,36 @@ public class AppointmentService {
         response.setCreatedAt(appointment.getCreatedAt());
         return response;
     }
+
+    public List<AppointmentResponseDto> getAppointmentsForUser(String userId) {
+    return appointmentRepository.findByBookedByUserId(userId).stream()
+            .map(appointmentMapper::toResponse)
+            .toList();
+}
+
+public AppointmentResponseDto bookAppointment(AppointmentRequestDto dto, String bookedByUserId) {
+    Appointment appointment = appointmentMapper.toEntity(dto);
+    appointment.setBookedByUserId(bookedByUserId);
+    // ...your existing booking/conflict-check logic here...
+    appointment = appointmentRepository.save(appointment);
+    return appointmentMapper.toResponse(appointment);
+}
+
+public AppointmentResponseDto updateStatusAsOwner(String id, String status, String userId) {
+    Appointment appointment = appointmentRepository.findById(id)
+            .orElseThrow(() -> new NoSuchElementException("Appointment not found"));
+
+    if (!userId.equals(appointment.getBookedByUserId())) {
+        throw new AccessDeniedException("You can only modify your own appointments");
+    }
+    // Users can only cancel, not mark complete
+    if (!"CANCELLED".equals(status)) {
+        throw new AccessDeniedException("Users may only cancel their own appointments");
+    }
+
+    appointment.setStatus(status);
+    appointment = appointmentRepository.save(appointment);
+    return appointmentMapper.toResponse(appointment);
+}
+
 }
